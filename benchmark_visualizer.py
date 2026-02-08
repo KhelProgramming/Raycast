@@ -158,7 +158,7 @@ def perform_analysis():
 
     # Plot 2: Latency Comparison (Lower is Better)
     plt.figure(figsize=(8, 5))
-    sns.barplot(data=df_results, x="Algorithm", y="Latency (ms)", palette="magma")
+    sns.barplot(data=df_results, x="Algorithm", y="Latency (ms)", hue="Algorithm", legend=False, palette="magma")
     plt.title("Inference Latency (Speed Test)")
     plt.ylabel("Time per Prediction (ms)")
     for i, v in enumerate(df_results["Latency (ms)"]):
