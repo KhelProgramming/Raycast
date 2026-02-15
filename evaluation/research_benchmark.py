@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-
+ 
 # --- FIX: Pathing for local execution ---
 # This allows the script to find gesture_system even if run from inside the folder
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
