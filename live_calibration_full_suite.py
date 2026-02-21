@@ -4,7 +4,7 @@ import numpy as np
 import time
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
-
+ 
 # --- 1. THE GEOMETRIC EXTRACTOR ---
 def extract_geometric_features(landmarks):
     points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
