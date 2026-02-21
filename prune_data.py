@@ -1,87 +1,66 @@
 import os
 import sys
-import numpy as np
 import pandas as pd
 
 # --- SMART IMPORT FIX ---
-# Allows running from root directory
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from gesture_system.config import TRAIN_FILE
-    from gesture_system.dataset.data_manager import DataManager
-except ModuleNotFoundError:
-    from config import TRAIN_FILE
-    from dataset.data_manager import DataManager
+except (ImportError, ModuleNotFoundError):
+    TRAIN_FILE = os.path.join("gesture_system", "dataset", "gestures.csv")
 
-def prune_dataset(threshold=0.05):
+def refine_dataset_for_realism():
     """
-    threshold (float): How different a frame needs to be to be kept.
-                       0.05 is a good balance for normalized landmarks.
+    Final refinement based on production-grade principles:
+    1. Removes exact duplicates to stop static-bias.
+    2. Uses Temporal Spread for downsampling (no clustering).
+    3. Preserves motion transitions for real-time smoothness.
     """
-    print("🧹 STARTING DATA PRUNING OPERATION...")
+    print("🚀 REFINING DATASET FOR REAL-TIME REALISM...")
     
-    # 1. Load Data
     if not os.path.exists(TRAIN_FILE):
-        print(f"❌ Error: Could not find {TRAIN_FILE}")
+        print(f"❌ Error: {TRAIN_FILE} not found!")
         return
 
     df = pd.read_csv(TRAIN_FILE)
     original_count = len(df)
-    print(f"📦 Original Dataset Size: {original_count} samples")
-
-    # 2. Setup output list
-    pruned_data = []
     
-    # 3. Process each gesture label separately
-    # (We don't want to compare a 'Left_Click' to a 'Right_Click')
-    for label, group in df.groupby("label"):
-        print(f"   ...Processing '{label}' (Count: {len(group)})")
+    # ✅ STEP 1: REMOVE ONLY EXACT DUPLICATES
+    df = df.drop_duplicates().reset_index(drop=True)
+    dedup_count = len(df)
+    
+    print(f"📊 Original Size: {original_count}")
+    print(f"📊 De-duplicated: {dedup_count} (Removed {original_count - dedup_count})")
+    
+    # ✅ STEP 2: CLASS DISTRIBUTION AUDIT
+    counts = df['label'].value_counts()
+    gesture_counts = counts.drop('idle', errors='ignore')
+    
+    if not gesture_counts.empty:
+        max_gesture_size = gesture_counts.max()
+        idle_size = counts.get('idle', 0)
         
-        # Convert features to numpy array (excluding label column)
-        features = group.drop("label", axis=1).values
-        
-        # Always keep the first frame of a gesture
-        kept_indices = [0] 
-        last_kept_features = features[0]
-        
-        # Iterate through the rest
-        for i in range(1, len(features)):
-            current_features = features[i]
+        # ✅ STEP 3: TEMPORAL SPREAD DOWNSAMPLING
+        # Only trigger if idle is extreme (> 4x largest gesture)
+        if idle_size > (4 * max_gesture_size):
+            target_idle = 2 * max_gesture_size
+            print(f"⚠️ Idle dominance detected ({idle_size} samples).")
+            print(f"⚖️ Applying Temporal Spread: Keeping {target_idle} samples across the timeline...")
             
-            # Calculate Euclidean Distance between this frame and the LAST KEPT frame
-            # (Dist = sqrt((x2-x1)^2 + (y2-y1)^2 + ...))
-            distance = np.linalg.norm(current_features - last_kept_features)
+            idle_subset = df[df.label == 'idle']
+            # Logic: Slice the dataframe to get even spacing
+            step = max(1, idle_size // target_idle)
+            idle_group = idle_subset.iloc[::step].head(target_idle)
             
-            # If distance is BIGGER than threshold, it's a new unique movement. Keep it.
-            if distance > threshold:
-                kept_indices.append(i)
-                last_kept_features = current_features
-        
-        # Add the kept rows to our master list
-        pruned_group = group.iloc[kept_indices]
-        pruned_data.append(pruned_group)
-        print(f"      -> Kept {len(pruned_group)} / {len(group)} ({len(group)-len(pruned_group)} dropped)")
+            action_groups = df[df.label != 'idle']
+            df = pd.concat([idle_group, action_groups]).sample(frac=1).reset_index(drop=True)
 
-    # 4. Combine and Save
-    final_df = pd.concat(pruned_data)
+    output_path = TRAIN_FILE.replace(".csv", "_refined.csv")
+    df.to_csv(output_path, index=False)
     
-    # Create new filename
-    directory = os.path.dirname(TRAIN_FILE)
-    filename = os.path.basename(TRAIN_FILE)
-    new_filename = filename.replace(".csv", "_pruned.csv")
-    output_path = os.path.join(directory, new_filename)
-    
-    final_df.to_csv(output_path, index=False)
-    
-    print("\n" + "="*50)
-    print("✨ PRUNING COMPLETE ✨")
-    print("="*50)
-    print(f"📉 Reduced from {original_count} to {len(final_df)} samples.")
-    print(f"💾 Saved clean version to: {output_path}")
-    print(f"🗑️  Removed {original_count - len(final_df)} duplicate frames.")
-    print("="*50)
-    print("👉 NOTE: Go to 'config.py' and change TRAIN_FILE to this new file to use it!")
+    print(f"\n✅ REFINED DATASET SAVED: {output_path}")
+    print("👉 CRITICAL: Your models MUST use 'class_weight=balanced' now!")
 
 if __name__ == "__main__":
-    prune_dataset(threshold=0.05) # Adjustable: Higher = Stricter Pruning
+    refine_dataset_for_realism()
