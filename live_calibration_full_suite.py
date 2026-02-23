@@ -15,22 +15,42 @@ def calculate_angle(a, b, c):
     cosine_angle = np.clip(cosine_angle, -1.0, 1.0) # Prevent floating point errors
     return np.degrees(np.arccos(cosine_angle))
 
+def get_normalized_points(landmarks):
+    """
+    Takes raw MediaPipe landmarks and shifts them so the wrist is always at (0, 0, 0).
+    """
+    # 1. Convert the raw MediaPipe landmarks into a flat numpy array
+    raw_points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
+    
+    # 2. Grab the wrist's coordinates (the wrist is always landmark 0)
+    wrist = raw_points[0]
+    
+    # 3. Subtract the wrist's position from every single joint in the hand
+    # This magically shifts the entire hand so the wrist becomes 0, 0, 0
+    normalized_points = raw_points - wrist
+    
+    return normalized_points
+
 # --- 2. THE UPGRADED GEOMETRIC EXTRACTOR ---
 def extract_geometric_features(landmarks):
-    points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
+    # USE THE NEW NORMALIZER HERE!
+    points = get_normalized_points(landmarks)
+    
+    # The rest of your exact same 18-feature math stays here:
     
     # 📏 Original 13 Distance Features
     palm_width = np.linalg.norm(points[5] - points[17])
     if palm_width < 1e-6: palm_width = 1.0 
 
-    wrist = points[0]
+    # Note: points[0] is now mathematically [0.0, 0.0, 0.0], perfectly anchored!
+    wrist = points[0] 
     extensions = [np.linalg.norm(wrist - points[idx]) / palm_width for idx in [4, 8, 12, 16, 20]]
     thumb_tip = points[4]
     pinches = [np.linalg.norm(thumb_tip - points[idx]) / palm_width for idx in [8, 12, 16, 20]]
     spreads = [np.linalg.norm(points[i] - points[j]) / palm_width for i, j in [(8, 12), (12, 16), (16, 20)]]
     thumb_to_pinky_base = np.linalg.norm(points[4] - points[17]) / palm_width
     
-    # 📐 New 5 Curl Angle Features (Normalized 0.0 to 1.0)
+    # 📐 New 5 Curl Angle Features 
     thumb_angle = calculate_angle(points[1], points[2], points[3]) / 180.0
     index_angle = calculate_angle(points[5], points[6], points[7]) / 180.0
     middle_angle = calculate_angle(points[9], points[10], points[11]) / 180.0
@@ -39,7 +59,6 @@ def extract_geometric_features(landmarks):
     
     angles = [thumb_angle, index_angle, middle_angle, ring_angle, pinky_angle]
     
-    # Total: 18 Features
     return extensions + pinches + spreads + [thumb_to_pinky_base] + angles
 
 # --- 3. THE CALIBRATION ENGINE ---
