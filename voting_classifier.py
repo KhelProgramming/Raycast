@@ -14,9 +14,20 @@ from sklearn.preprocessing import StandardScaler
 
 DATA_FILE = "user_profile.csv"
 
-# --- 1. THE GEOMETRIC EXTRACTOR ---
+# --- 1. THE 3D VECTOR MATH HELPER ---
+def calculate_angle(a, b, c):
+    """Calculates the 3D angle at joint 'b' in degrees."""
+    ba = a - b
+    bc = c - b
+    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    cosine_angle = np.clip(cosine_angle, -1.0, 1.0) # Prevent floating point errors
+    return np.degrees(np.arccos(cosine_angle))
+
+# --- 2. THE UPGRADED GEOMETRIC EXTRACTOR ---
 def extract_geometric_features(landmarks):
     points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
+    
+    # 📏 Original 13 Distance Features
     palm_width = np.linalg.norm(points[5] - points[17])
     if palm_width < 1e-6: palm_width = 1.0 
 
@@ -27,15 +38,24 @@ def extract_geometric_features(landmarks):
     spreads = [np.linalg.norm(points[i] - points[j]) / palm_width for i, j in [(8, 12), (12, 16), (16, 20)]]
     thumb_to_pinky_base = np.linalg.norm(points[4] - points[17]) / palm_width
     
-    return extensions + pinches + spreads + [thumb_to_pinky_base]
+    # 📐 New 5 Curl Angle Features (Normalized 0.0 to 1.0)
+    thumb_angle = calculate_angle(points[1], points[2], points[3]) / 180.0
+    index_angle = calculate_angle(points[5], points[6], points[7]) / 180.0
+    middle_angle = calculate_angle(points[9], points[10], points[11]) / 180.0
+    ring_angle = calculate_angle(points[13], points[14], points[15]) / 180.0
+    pinky_angle = calculate_angle(points[17], points[18], points[19]) / 180.0
+    
+    angles = [thumb_angle, index_angle, middle_angle, ring_angle, pinky_angle]
+    
+    return extensions + pinches + spreads + [thumb_to_pinky_base] + angles
 
-# --- 2. THE LIVE TESTER ---
+# --- 3. THE LIVE TESTER ---
 def run_transition_tester():
     if not os.path.exists(DATA_FILE):
         print("⚠️ No user_profile.csv found. Please run the calibration script first.")
         return
 
-    print("Loading data and training all 6 models. Please wait...")
+    print("Loading 18-feature data and training all 6 models. Please wait...")
     df = pd.read_csv(DATA_FILE)
     X = df.drop('label', axis=1).values
     y = df['label'].values
@@ -77,7 +97,7 @@ def run_transition_tester():
     hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
     cap = cv2.VideoCapture(0)
 
-    current_key = '6' # Default to our new Hybrid!
+    current_key = '6' # Default to our Hybrid!
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -87,8 +107,8 @@ def run_transition_tester():
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = hands.process(rgb_frame)
 
-        # Draw UI Background
-        cv2.rectangle(frame, (0, 0), (420, 180), (0, 0, 0), -1)
+        # Draw UI Background (widened slightly to fit the new text)
+        cv2.rectangle(frame, (0, 0), (450, 180), (0, 0, 0), -1)
 
         model_name, active_model = models_dict[current_key]
         cv2.putText(frame, f"MODEL: {model_name} (Press 1-6)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
@@ -125,7 +145,7 @@ def run_transition_tester():
                 
                 # Draw a visual bar for the probability
                 bar_length = int(confidence * 2) # Scale for pixels
-                cv2.rectangle(frame, (230, y_offset - 15), (230 + bar_length, y_offset), color, -1)
+                cv2.rectangle(frame, (250, y_offset - 15), (250 + bar_length, y_offset), color, -1)
                 
                 y_offset += 40
 
