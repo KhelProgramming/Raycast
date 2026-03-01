@@ -1,0 +1,65 @@
+{
+  "RF": {
+    "best_params": {
+      "n_estimators": 400,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "log2",
+      "max_depth": 30
+    },
+    "best_cv_f1_weighted": 0.9897915440579581,
+    "n_iter": 30,
+    "cv_folds": 5,
+    "scoring": "f1_weighted"
+  },
+  "SVM": {
+    "best_params": {
+      "gamma": 0.21544346900318823,
+      "C": 28.48035868435799
+    },
+    "best_cv_f1_weighted": 0.9938314942748894,
+    "n_iter": 30,
+    "cv_folds": 5,
+    "scoring": "f1_weighted"
+  },
+  "KNN": {
+    "best_params": {
+      "weights": "distance",
+      "p": 2,
+      "n_neighbors": 3
+    },
+    "best_cv_f1_weighted": 0.9902795179881829,
+    "n_iter": 30,
+    "cv_folds": 5,
+    "scoring": "f1_weighted"
+  },
+  "LOGREG": {
+    "best_params": {
+      "C": 8.111308307896872
+    },
+    "best_cv_f1_weighted": 0.9683297732663135,
+    "n_iter": 30,
+    "cv_folds": 5,
+    "scoring": "f1_weighted"
+  },
+  "MLP": {
+    "best_params": {
+      "learning_rate_init": 0.0013894954943731374,
+      "hidden_layer_sizes": [
+        128,
+        128,
+        64
+      ],
+      "batch_size": 256,
+      "alpha": 0.001,
+      "activation": "relu"
+    },
+    "best_cv_f1_weighted": 0.992764988114699,
+    "n_iter": 30,
+    "cv_folds": 5,
+    "scoring": "f1_weighted"
+  },
+  "HYBRID_RF_MLP": {
+    "note": "soft vote of tuned RF + tuned MLP"
+  }
+}
